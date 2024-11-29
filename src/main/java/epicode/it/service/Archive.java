@@ -40,8 +40,7 @@ public class Archive {
     }
 
     public Map<Integer, List<Publication>> getPublicationsGroupedByYear() throws PublicationNotFoundException {
-        List<Publication> books = this.publicationList.stream().filter(p -> p instanceof Book).toList();
-        return books.stream().collect(Collectors.groupingBy(Publication::getYear));
+        return this.getPublicationList().stream().collect(Collectors.groupingBy(Publication::getYear));
     }
 
     public List<Publication> getByYear(int year) throws PublicationNotFoundException {
