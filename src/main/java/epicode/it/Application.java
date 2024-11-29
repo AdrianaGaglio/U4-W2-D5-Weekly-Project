@@ -23,10 +23,9 @@ public class Application {
     public static final String ARCHIVE_PERSONAL_LIST_TXT = "archive/personalList.txt";
     private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
     public static final String ARCHIVE_ARCHIVE_TXT = "archive/archive.txt";
-    private static Scanner scanner = new Scanner(System.in);
+    private static final Scanner scanner = new Scanner(System.in);
 
     public static int showMainMenu() {
-        Scanner scanner = new Scanner(System.in);
         System.out.println("Select an option to proceed: (0 to exit program):");
         System.out.println("=> 1. Reload archive from file (this will overwrite the current archive if not saved yet)");
         System.out.println("=> 2. Show list of publications");
@@ -54,7 +53,6 @@ public class Application {
 
 
     public static void main(String[] args) throws IOException, PublicationNotFoundException {
-        Scanner scanner = new Scanner(System.in);
         // CREO ARCHIVIO GLOBALE E PERSONALE
         Archive archive = new Archive();
         Archive personalArchive = new Archive();
@@ -78,6 +76,8 @@ public class Application {
                     try {
                         archive.getPublicationList().clear(); // Pulisce l'archivio esistente
                         readSavedProducts(true).forEach(p -> archive.getPublicationList().add(p));
+                        personalArchive.getPublicationList().clear(); // Pulisce l'archivio esistente
+                        readSavedProducts(false).forEach(p -> personalArchive.getPublicationList().add(p));
                         LOGGER.info("Publications loaded successfully.");
                         System.out.println("Do you want to see the complete list? (y/n)");
                         String answer = scanner.nextLine();
@@ -101,7 +101,7 @@ public class Application {
                                     if (pubIndex >= 0 && pubIndex < archive.getPublicationList().size()) {
                                         try {
                                             personalArchive.addToArchive(archive.getPublicationList().get(pubIndex));
-                                            savePersonalList(personalArchive.getPublicationList());
+                                            saveArchive(ARCHIVE_PERSONAL_LIST_TXT, personalArchive.getPublicationList());
                                             LOGGER.info("Publication saved to personal list.");
                                             valid = true;
                                         } catch (SameIsbnException e) {
@@ -141,7 +141,7 @@ public class Application {
                                 if (pubIndex >= 0 && pubIndex < archive.getPublicationList().size()) {
                                     try {
                                         personalArchive.addToArchive(archive.getPublicationList().get(pubIndex));
-                                        savePersonalList(personalArchive.getPublicationList());
+                                        saveArchive(ARCHIVE_PERSONAL_LIST_TXT,personalArchive.getPublicationList());
                                         valid = true;
                                         LOGGER.info("Publication saved to personal list.");
                                     } catch (SameIsbnException e) {
@@ -349,17 +349,25 @@ public class Application {
                     System.out.println("=> Pages averages of all publications: " + archive.getAveragePages());
                     System.out.println("==================================================");
                 } else if (option == 14) {
-                    saveArchive(archive.getPublicationList());
-                    savePersonalList(personalArchive.getPublicationList());
+                    saveArchive(ARCHIVE_ARCHIVE_TXT, archive.getPublicationList());
+                    saveArchive(ARCHIVE_PERSONAL_LIST_TXT, archive.getPublicationList());
                     LOGGER.info("Changes have been saved correctly!");
                 } else if (option == 15) {
-                    System.out.println("Personal list:");
-                    personalArchive.getPublicationList().forEach(System.out::println);
-                    System.out.println("==================================================");
+                    try{
+                        if (personalArchive.getPublicationList().size() == 0) {
+                            throw new Exception("Personal list is empty!");
+                        } else {
+                            System.out.println("Personal list:");
+                            personalArchive.getPublicationList().forEach(System.out::println);
+                            System.out.println("==================================================");
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error(e.getMessage());
+                    }
                     System.out.println("Choose an option: (0 to go back to menu)");
                     System.out.println("=> 1. Delete a publication");
                     System.out.println("=> 2. Show statistics");
-                    System.out.println("=> 3. Back to main menu");
+                    System.out.println("=> Any other number to go back to menu");
                     int opt = scanner.nextInt();
                     scanner.nextLine();
                     if(opt == 1) {
@@ -378,15 +386,13 @@ public class Application {
                             }
                         }
                     } else if(opt == 2){
-                        System.out.println("Personal tatistics:");
-                        System.out.println("=> Total number of publications: " + archive.getPublicationList().size());
-                        System.out.println("=> Total number of books: " + archive.getNumberOfBooks());
-                        System.out.println("=> Total number of magazines: " + archive.getNumberOfMagazines());
-                        System.out.println("=> Max pages of a publications: " + archive.getMaxPages());
-                        System.out.println("=> Pages averages of all publications: " + archive.getAveragePages());
+                        System.out.println("Personal statistics:");
+                        System.out.println("=> Total number of publications: " + personalArchive.getPublicationList().size());
+                        System.out.println("=> Total number of books: " + personalArchive.getNumberOfBooks());
+                        System.out.println("=> Total number of magazines: " + personalArchive.getNumberOfMagazines());
+                        System.out.println("=> Max pages of a publications: " + personalArchive.getMaxPages());
+                        System.out.println("=> Pages averages of all publications: " + personalArchive.getAveragePages());
                         System.out.println("==================================================");
-                    } else if(opt == 3) {
-                        break;
                     }
                 }
             } else if (option == 0) {
@@ -403,24 +409,10 @@ public class Application {
 
     }
 
-
-    public static void saveArchive(List<Publication> archive) throws IOException {
-        File file = new File(ARCHIVE_ARCHIVE_TXT);
+    public static void saveArchive(String filePath, List<Publication> archive) throws IOException {
+        File file = new File(filePath);
         String publications = "";
         for (Publication p : archive) {
-            if (p instanceof Book) {
-                publications += "Book@" + ((Book) p).getISBN() + "@" + ((Book) p).getTitle() + "@" + ((Book) p).getYear() + "@" + ((Book) p).getPages() + "@" + ((Book) p).getAuthor() + "@" + ((Book) p).getGenre() + "#";
-            } else if (p instanceof Magazine) {
-                publications += "Magazine@" + ((Magazine) p).getISBN() + "@" + ((Magazine) p).getTitle() + "@" + ((Magazine) p).getYear() + "@" + ((Magazine) p).getPages() + "@" + ((Magazine) p).getPeriodicity().toString() + "#";
-            }
-        }
-        FileUtils.writeStringToFile(file, publications, "UTF-8");
-    }
-
-    public static void savePersonalList(List<Publication> personalList) throws IOException {
-        File file = new File(ARCHIVE_PERSONAL_LIST_TXT);
-        String publications = "";
-        for (Publication p : personalList) {
             if (p instanceof Book) {
                 publications += "Book@" + ((Book) p).getISBN() + "@" + ((Book) p).getTitle() + "@" + ((Book) p).getYear() + "@" + ((Book) p).getPages() + "@" + ((Book) p).getAuthor() + "@" + ((Book) p).getGenre() + "#";
             } else if (p instanceof Magazine) {
